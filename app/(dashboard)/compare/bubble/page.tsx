@@ -22,11 +22,18 @@ export default async function BubblePage({ searchParams }: Props) {
 
   const { data: scores } = await supabase
     .from('deviation_scores')
-    .select('*, stores(name), revenue_analysis(total_revenue, visit_count, tech_fee_unit)')
+    .select('*, stores(name)')
     .eq('year_month', currentMonth)
 
+  const { data: revenues } = await supabase
+    .from('revenue_analysis')
+    .select('store_id, total_revenue, visit_count, tech_fee_unit')
+    .eq('year_month', currentMonth)
+
+  const revenueMap = new Map((revenues ?? []).map(r => [r.store_id, r]))
+
   const bubbleData = (scores ?? []).map(s => {
-    const rev = s.revenue_analysis as { total_revenue: number; visit_count: number; tech_fee_unit: number } | null
+    const rev = revenueMap.get(s.store_id)
     return {
       storeId:           s.store_id,
       storeName:         (s.stores as { name: string } | null)?.name ?? s.store_id,

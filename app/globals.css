@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+  body { font-family: 'Hiragino Sans', 'Noto Sans JP', sans-serif; }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 p-4;
+  }
+  .btn-primary {
+    @apply bg-brand text-white px-4 py-2 rounded-lg hover:bg-brand-light transition-colors text-sm font-medium disabled:opacity-50;
+  }
+  .btn-secondary {
+    @apply bg-white text-gray-700 px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors text-sm font-medium;
+  }
+  .deviation-badge {
+    @apply inline-flex items-center justify-center w-12 h-7 rounded-full text-xs font-bold;
+  }
+  .deviation-high   { @apply bg-red-100 text-red-700; }
+  .deviation-above  { @apply bg-orange-100 text-orange-700; }
+  .deviation-mid    { @apply bg-yellow-100 text-yellow-700; }
+  .deviation-below  { @apply bg-blue-100 text-blue-700; }
+  .deviation-low    { @apply bg-blue-200 text-blue-800; }
+}

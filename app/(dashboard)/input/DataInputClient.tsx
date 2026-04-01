@@ -82,7 +82,10 @@ export default function DataInputClient({ stores }: { stores: { id: string; name
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Unknown error')
       setStatus(prev => ({ ...prev, [activeTab]: 'ok' }))
-      setStatusMsg(prev => ({ ...prev, [activeTab]: `✓ ${json.savedCount}件を保存しました` }))
+      const storeMsg = json.newStoreCount > 0
+        ? `（新規店舗 ${json.newStoreCount} 件を自動登録）`
+        : ''
+      setStatusMsg(prev => ({ ...prev, [activeTab]: `✓ ${json.savedCount}件を保存しました ${storeMsg}` }))
     } catch (err) {
       setStatus(prev => ({ ...prev, [activeTab]: 'error' }))
       setStatusMsg(prev => ({ ...prev, [activeTab]: `エラー: ${(err as Error).message}` }))

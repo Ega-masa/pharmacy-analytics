@@ -15,26 +15,71 @@ export async function POST(req: NextRequest) {
   if (!type || !yearMonth || !Array.isArray(rows))
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
 
-  // 店舗マスタ（store_code → id のマップを作成）
-  const { data: stores } = await supabase.from('stores').select('id, store_code, name')
-  const storeMap = new Map<string, string>()
-  const storeNameMap = new Map<string, string>()
-  ;(stores ?? []).forEach(s => {
-    if (s.store_code) storeMap.set(s.store_code.trim(), s.id)
-    storeNameMap.set(s.name.trim(), s.id)
+  // -------------------------------------------------------
+  // 店舗マスタキャッシュ（store_code / name → id）
+  // -------------------------------------------------------
+  const { data: existingStores } = await supabase
+    .from('stores').select('id, store_code, name')
+
+  const storeByCode = new Map<string, string>()  // store_code → id
+  const storeByName = new Map<string, string>()  // name       → id
+  ;(existingStores ?? []).forEach(s => {
+    if (s.store_code) storeByCode.set(s.store_code.trim(), s.id)
+    storeByName.set(s.name.trim(), s.id)
   })
 
-  function resolveStoreId(row: Record<string, unknown>): string | null {
+  // 新規登録した店舗数を記録
+  let newStoreCount = 0
+
+  /**
+   * store_code または name で既存店舗を検索し、
+   * 見つからなければ stores テーブルに自動登録して id を返す。
+   * 店舗名が空の行は null を返してスキップさせる。
+   */
+  async function resolveOrCreateStoreId(
+    row: Record<string, unknown>
+  ): Promise<string | null> {
     const code = String(row.storeCode ?? '').trim()
     const name = String(row.storeName ?? '').trim()
-    return storeMap.get(code) ?? storeNameMap.get(name) ?? null
+
+    if (!name) return null  // 店舗名が空の行は無視
+
+    // ① store_code で検索
+    if (code && storeByCode.has(code)) return storeByCode.get(code)!
+
+    // ② 店舗名で検索
+    if (storeByName.has(name)) return storeByName.get(name)!
+
+    // ③ 未登録 → 新規作成
+    const { data: newStore, error } = await supabase
+      .from('stores')
+      .insert({
+        name,
+        store_code: code || null,
+        // CSV の階層情報があれば活用（収益系分析のみ存在）
+        level1: (row.level1 as string | undefined) ?? null,
+        level2: (row.level2 as string | undefined) ?? null,
+      })
+      .select('id')
+      .single()
+
+    if (error || !newStore) {
+      console.error('店舗自動登録エラー:', name, error?.message)
+      return null
+    }
+
+    // キャッシュに追加（同一ペースト内の後続行でも再利用できるように）
+    storeByName.set(name, newStore.id)
+    if (code) storeByCode.set(code, newStore.id)
+    newStoreCount++
+    return newStore.id
   }
 
   let saved = 0
 
   if (type === 'revenue') {
     for (const row of rows as Record<string, unknown>[]) {
-      const storeId = resolveStoreId(row)
+      const storeId = await resolveOrCreateStoreId(row)
       if (!storeId) continue
       await supabase.from('revenue_analysis').upsert({
         year_month:              yearMonth,
@@ -58,7 +103,7 @@ export async function POST(req: NextRequest) {
 
   if (type === 'revisit') {
     for (const row of rows as Record<string, unknown>[]) {
-      const storeId = resolveStoreId(row)
+      const storeId = await resolveOrCreateStoreId(row)
       if (!storeId) continue
       await supabase.from('revisit_analysis').upsert({
         year_month:              yearMonth,
@@ -81,7 +126,7 @@ export async function POST(req: NextRequest) {
 
   if (type === 'pharma_out') {
     for (const row of rows as Record<string, unknown>[]) {
-      const storeId = resolveStoreId(row)
+      const storeId = await resolveOrCreateStoreId(row)
       if (!storeId) continue
       await supabase.from('pharma_mgmt_outpatient').upsert({
         year_month:                       yearMonth,
@@ -116,7 +161,7 @@ export async function POST(req: NextRequest) {
 
   if (type === 'pharma_home') {
     for (const row of rows as Record<string, unknown>[]) {
-      const storeId = resolveStoreId(row)
+      const storeId = await resolveOrCreateStoreId(row)
       if (!storeId) continue
       await supabase.from('pharma_mgmt_home').upsert({
         year_month:          yearMonth,
@@ -131,7 +176,7 @@ export async function POST(req: NextRequest) {
 
   if (type === 'regional') {
     for (const row of rows as Record<string, unknown>[]) {
-      const storeId = resolveStoreId(row)
+      const storeId = await resolveOrCreateStoreId(row)
       if (!storeId) continue
       await supabase.from('regional_support').upsert({
         year_month:         yearMonth,
@@ -152,5 +197,5 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ savedCount: saved })
+  return NextResponse.json({ savedCount: saved, newStoreCount })
 }

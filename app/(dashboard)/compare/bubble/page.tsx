@@ -4,7 +4,7 @@ import MonthSelector from '@/components/ui/MonthSelector'
 import Link from 'next/link'
 import BubbleChartClient from './BubbleChartClient'
 
-type Props = { searchParams: Promise<{ month?: string; x?: string; y?: string; z?: string }> }
+type Props = { searchParams: { month?: string; x?: string; y?: string; z?: string } }
 
 export default async function BubblePage({ searchParams }: Props) {
   const supabase = await createClient()
@@ -18,23 +18,21 @@ export default async function BubblePage({ searchParams }: Props) {
     .from('deviation_scores').select('year_month').order('year_month', { ascending: false })
   const availableMonths = [...new Set((months ?? []).map(m => m.year_month))]
 
-  const sp = await searchParams
-  const currentMonth = sp.month ?? availableMonths[0] ?? ''
+  const currentMonth = searchParams.month ?? availableMonths[0] ?? ''
 
   const { data: scores } = await supabase
     .from('deviation_scores')
     .select('*, stores(name), revenue_analysis(total_revenue, visit_count, tech_fee_unit)')
     .eq('year_month', currentMonth)
 
-  // バブルデータ生成（デフォルト: X=受付回数, Y=技術料単価, Z=売上）
   const bubbleData = (scores ?? []).map(s => {
-    const rev = (s.revenue_analysis as {total_revenue:number; visit_count:number; tech_fee_unit:number} | null)
+    const rev = s.revenue_analysis as { total_revenue: number; visit_count: number; tech_fee_unit: number } | null
     return {
-      storeId:   s.store_id,
-      storeName: (s.stores as {name:string})?.name ?? s.store_id,
-      visitCount:    rev?.visit_count ?? 0,
-      techFeeUnit:   rev?.tech_fee_unit ?? 0,
-      totalRevenue:  rev?.total_revenue ?? 0,
+      storeId:           s.store_id,
+      storeName:         (s.stores as { name: string } | null)?.name ?? s.store_id,
+      visitCount:        rev?.visit_count ?? 0,
+      techFeeUnit:       rev?.tech_fee_unit ?? 0,
+      totalRevenue:      rev?.total_revenue ?? 0,
       overallRevisitDev: s.overall_revisit_deviation ?? 50,
       totalDev:          s.total_deviation ?? 50,
       revenueDev:        s.revenue_deviation ?? 50,

@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import DeviationBadge from '@/components/ui/DeviationBadge'
 import MonthSelector from '@/components/ui/MonthSelector'
 
-type Props = { searchParams: Promise<{ month?: string }> }
+type Props = { searchParams: { month?: string } }
 
 export default async function DashboardPage({ searchParams }: Props) {
   const supabase  = await createClient()
@@ -22,8 +22,7 @@ export default async function DashboardPage({ searchParams }: Props) {
     .select('year_month')
     .order('year_month', { ascending: false })
   const availableMonths = [...new Set((months ?? []).map(m => m.year_month))]
-  const sp = await searchParams
-  const currentMonth = sp.month ?? availableMonths[0] ?? ''
+  const currentMonth = searchParams.month ?? availableMonths[0] ?? ''
 
   // 店舗ダッシュボードか全店一覧かを分岐
   if (role === 'store_manager' || role === 'individual') {
@@ -95,7 +94,9 @@ export default async function DashboardPage({ searchParams }: Props) {
                 {(scores ?? []).map((s, i) => (
                   <tr key={s.store_id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                     <td className="py-2.5 px-3 text-gray-500 font-medium">{i + 1}</td>
-                    <td className="py-2.5 px-3 font-medium text-gray-900">{(s.stores as {name:string})?.name ?? s.store_id}</td>
+                    <td className="py-2.5 px-3 font-medium text-gray-900">
+                      {(s.stores as { name: string } | null)?.name ?? s.store_id}
+                    </td>
                     <td className="py-2.5 px-3 text-center">
                       <DeviationBadge value={s.total_deviation} />
                     </td>

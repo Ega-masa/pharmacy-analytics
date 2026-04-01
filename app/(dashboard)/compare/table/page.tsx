@@ -4,7 +4,7 @@ import Link from 'next/link'
 import MonthSelector from '@/components/ui/MonthSelector'
 import DeviationBadge from '@/components/ui/DeviationBadge'
 
-type Props = { searchParams: Promise<{ month?: string; sort?: string; dir?: string }> }
+type Props = { searchParams: { month?: string; sort?: string; dir?: string } }
 
 export default async function CompareTablePage({ searchParams }: Props) {
   const supabase = await createClient()
@@ -19,10 +19,9 @@ export default async function CompareTablePage({ searchParams }: Props) {
     .order('year_month', { ascending: false })
   const availableMonths = [...new Set((months ?? []).map(m => m.year_month))]
 
-  const sp = await searchParams
-  const currentMonth = sp.month ?? availableMonths[0] ?? ''
-  const sortKey = sp.sort ?? 'total_rank'
-  const sortDir = sp.dir ?? 'asc'
+  const currentMonth = searchParams.month ?? availableMonths[0] ?? ''
+  const sortKey = searchParams.sort ?? 'total_rank'
+  const sortDir = searchParams.dir ?? 'asc'
 
   const { data: scores } = await supabase
     .from('deviation_scores')
@@ -89,9 +88,9 @@ export default async function CompareTablePage({ searchParams }: Props) {
             {(scores ?? []).map((s, i) => (
               <tr key={s.store_id} className={`border-b border-gray-50 hover:bg-blue-50/30 transition-colors ${i % 2 === 0 ? '' : 'bg-gray-50/50'}`}>
                 <td className="py-2.5 px-3 font-medium text-gray-900 sticky left-0 bg-inherit">
-                  {(s.stores as {name:string;level1:string})?.name}
-                  {(s.stores as {name:string;level1:string})?.level1 &&
-                    <span className="text-xs text-gray-400 ml-1">({(s.stores as {name:string;level1:string}).level1})</span>}
+                  {(s.stores as { name: string; level1: string } | null)?.name}
+                  {(s.stores as { name: string; level1: string } | null)?.level1 &&
+                    <span className="text-xs text-gray-400 ml-1">({(s.stores as { name: string; level1: string }).level1})</span>}
                 </td>
                 <td className="py-2.5 px-2 text-center">
                   <span className="font-bold text-brand">{s.total_rank}位</span>

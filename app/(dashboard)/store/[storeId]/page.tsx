@@ -7,8 +7,8 @@ import TrendChart from '@/components/charts/TrendChart'
 import UnitPriceChart from '@/components/charts/UnitPriceChart'
 
 type Props = {
-  params:       Promise<{ storeId: string }>
-  searchParams: Promise<{ month?: string }>
+  params:       { storeId: string }
+  searchParams: { month?: string }
 }
 
 export default async function StorePage({ params, searchParams }: Props) {
@@ -17,7 +17,7 @@ export default async function StorePage({ params, searchParams }: Props) {
   if (!user) redirect('/login')
 
   const { data: profile } = await supabase.from('users').select('role, store_id').eq('id', user.id).single()
-  const { storeId } = await params
+  const { storeId } = params
 
   // 権限チェック: store_manager / individual は自分の店舗のみ
   if ((profile?.role === 'store_manager' || profile?.role === 'individual')
@@ -35,8 +35,7 @@ export default async function StorePage({ params, searchParams }: Props) {
     .order('year_month', { ascending: false })
   const availableMonths = (months ?? []).map(m => m.year_month)
 
-  const sp = await searchParams
-  const currentMonth = sp.month ?? availableMonths[0] ?? ''
+  const currentMonth = searchParams.month ?? availableMonths[0] ?? ''
 
   // 当月の偏差値
   const { data: score } = await supabase
@@ -49,50 +48,45 @@ export default async function StorePage({ params, searchParams }: Props) {
 
   const { data: trendRevenue } = await supabase
     .from('revenue_analysis').select('year_month, total_revenue, visit_count, tech_fee_unit, drug_fee_unit')
-    .eq('store_id', storeId).in('year_month', trendMonths)
+    .eq('store_id', storeId).in('year_month', trendMonths.length ? trendMonths : [''])
     .order('year_month')
 
   const { data: trendRevisit } = await supabase
     .from('revisit_analysis').select('year_month, overall_revisit_rate, new_revisit_rate')
-    .eq('store_id', storeId).in('year_month', trendMonths)
+    .eq('store_id', storeId).in('year_month', trendMonths.length ? trendMonths : [''])
     .order('year_month')
-
-  // 全店平均（トレンド用）
-  const { data: allRevAvg } = await supabase.rpc('get_monthly_avg_revenue', {
-    months: trendMonths
-  }).catch(() => ({ data: null }))
 
   // レーダーチャートデータ
   const radarData = score ? [
-    { subject: '収益',      value: score.revenue_deviation ?? 50,          fullMark: 80 },
-    { subject: '受付回数',  value: score.visit_count_deviation ?? 50,       fullMark: 80 },
-    { subject: '技術料単価',value: score.tech_fee_unit_deviation ?? 50,     fullMark: 80 },
-    { subject: '再来率',    value: score.overall_revisit_deviation ?? 50,   fullMark: 80 },
-    { subject: '重複防止',  value: score.duplicate_deviation ?? 50,         fullMark: 80 },
-    { subject: 'トレレポ',  value: score.tracing_report_deviation ?? 50,    fullMark: 80 },
+    { subject: '収益',       value: score.revenue_deviation ?? 50,          fullMark: 80 },
+    { subject: '受付回数',   value: score.visit_count_deviation ?? 50,       fullMark: 80 },
+    { subject: '技術料単価', value: score.tech_fee_unit_deviation ?? 50,     fullMark: 80 },
+    { subject: '再来率',     value: score.overall_revisit_deviation ?? 50,   fullMark: 80 },
+    { subject: '重複防止',   value: score.duplicate_deviation ?? 50,         fullMark: 80 },
+    { subject: 'トレレポ',   value: score.tracing_report_deviation ?? 50,    fullMark: 80 },
   ] : []
 
   // トレンドデータ整形
-  const revenueChartData = trendMonths.map(m => {
-    const r = trendRevenue?.find(d => d.year_month === m)
-    return { month: m, store: r?.total_revenue ?? 0 }
-  })
-  const visitChartData = trendMonths.map(m => {
-    const r = trendRevenue?.find(d => d.year_month === m)
-    return { month: m, store: r?.visit_count ?? 0 }
-  })
+  const revenueChartData = trendMonths.map(m => ({
+    month: m,
+    store: trendRevenue?.find(d => d.year_month === m)?.total_revenue ?? 0,
+  }))
+  const visitChartData = trendMonths.map(m => ({
+    month: m,
+    store: trendRevenue?.find(d => d.year_month === m)?.visit_count ?? 0,
+  }))
   const unitPriceData = trendMonths.map(m => {
     const r = trendRevenue?.find(d => d.year_month === m)
     return { month: m, techFee: r?.tech_fee_unit ?? 0, drugFee: r?.drug_fee_unit ?? 0 }
   })
-  const revisitChartData = trendMonths.map(m => {
-    const r = trendRevisit?.find(d => d.year_month === m)
-    return { month: m, store: Math.round((r?.overall_revisit_rate ?? 0) * 100) }
-  })
-  const newRevisitChartData = trendMonths.map(m => {
-    const r = trendRevisit?.find(d => d.year_month === m)
-    return { month: m, store: Math.round((r?.new_revisit_rate ?? 0) * 100) }
-  })
+  const revisitChartData = trendMonths.map(m => ({
+    month: m,
+    store: Math.round((trendRevisit?.find(d => d.year_month === m)?.overall_revisit_rate ?? 0) * 100),
+  }))
+  const newRevisitChartData = trendMonths.map(m => ({
+    month: m,
+    store: Math.round((trendRevisit?.find(d => d.year_month === m)?.new_revisit_rate ?? 0) * 100),
+  }))
 
   return (
     <div>

@@ -7,8 +7,8 @@ import TrendChart from '@/components/charts/TrendChart'
 import UnitPriceChart from '@/components/charts/UnitPriceChart'
 
 type Props = {
-  params:       { storeId: string }
-  searchParams: { month?: string }
+  params:       Promise<{ storeId: string }>
+  searchParams: Promise<{ month?: string }>
 }
 
 export default async function StorePage({ params, searchParams }: Props) {
@@ -17,7 +17,7 @@ export default async function StorePage({ params, searchParams }: Props) {
   if (!user) redirect('/login')
 
   const { data: profile } = await supabase.from('users').select('role, store_id').eq('id', user.id).single()
-  const { storeId } = params
+  const { storeId } = await params
 
   // 権限チェック: store_manager / individual は自分の店舗のみ
   if ((profile?.role === 'store_manager' || profile?.role === 'individual')
@@ -35,7 +35,7 @@ export default async function StorePage({ params, searchParams }: Props) {
     .order('year_month', { ascending: false })
   const availableMonths = (months ?? []).map(m => m.year_month)
 
-  const currentMonth = searchParams.month ?? availableMonths[0] ?? ''
+  const currentMonth = (await searchParams).month ?? availableMonths[0] ?? ''
 
   // 当月の偏差値
   const { data: score } = await supabase

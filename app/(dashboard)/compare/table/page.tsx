@@ -4,7 +4,7 @@ import Link from 'next/link'
 import MonthSelector from '@/components/ui/MonthSelector'
 import DeviationBadge from '@/components/ui/DeviationBadge'
 
-type Props = { searchParams: { month?: string; sort?: string; dir?: string } }
+type Props = { searchParams: Promise<{ month?: string; sort?: string; dir?: string }> }
 
 export default async function CompareTablePage({ searchParams }: Props) {
   const supabase = await createClient()
@@ -19,9 +19,10 @@ export default async function CompareTablePage({ searchParams }: Props) {
     .order('year_month', { ascending: false })
   const availableMonths = [...new Set((months ?? []).map(m => m.year_month))]
 
-  const currentMonth = searchParams.month ?? availableMonths[0] ?? ''
-  const sortKey = searchParams.sort ?? 'total_rank'
-  const sortDir = searchParams.dir ?? 'asc'
+  const { month, sort, dir } = await searchParams
+  const currentMonth = month ?? availableMonths[0] ?? ''
+  const sortKey = sort ?? 'total_rank'
+  const sortDir = dir ?? 'asc'
 
   const { data: scores } = await supabase
     .from('deviation_scores')

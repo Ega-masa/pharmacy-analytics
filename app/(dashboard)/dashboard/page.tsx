@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import DeviationBadge from '@/components/ui/DeviationBadge'
 import MonthSelector from '@/components/ui/MonthSelector'
 
-type Props = { searchParams: { month?: string } }
+type Props = { searchParams: Promise<{ month?: string }> }
 
 export default async function DashboardPage({ searchParams }: Props) {
   const supabase  = await createClient()
@@ -22,7 +22,7 @@ export default async function DashboardPage({ searchParams }: Props) {
     .select('year_month')
     .order('year_month', { ascending: false })
   const availableMonths = [...new Set((months ?? []).map(m => m.year_month))]
-  const currentMonth = searchParams.month ?? availableMonths[0] ?? ''
+  const currentMonth = (await searchParams).month ?? availableMonths[0] ?? ''
 
   // 店舗ダッシュボードか全店一覧かを分岐
   if (role === 'store_manager' || role === 'individual') {

@@ -4,7 +4,7 @@ import MonthSelector from '@/components/ui/MonthSelector'
 import Link from 'next/link'
 import BubbleChartClient from './BubbleChartClient'
 
-type Props = { searchParams: { month?: string; x?: string; y?: string; z?: string } }
+type Props = { searchParams: Promise<{ month?: string }> }
 
 export default async function BubblePage({ searchParams }: Props) {
   const supabase = await createClient()
@@ -18,7 +18,7 @@ export default async function BubblePage({ searchParams }: Props) {
     .from('deviation_scores').select('year_month').order('year_month', { ascending: false })
   const availableMonths = [...new Set((months ?? []).map(m => m.year_month))]
 
-  const currentMonth = searchParams.month ?? availableMonths[0] ?? ''
+  const currentMonth = (await searchParams).month ?? availableMonths[0] ?? ''
 
   const { data: scores } = await supabase
     .from('deviation_scores')

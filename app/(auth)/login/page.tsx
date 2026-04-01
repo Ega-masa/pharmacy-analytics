@@ -1,28 +1,33 @@
 'use client'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError]       = useState('')
+  const [errMsg, setErrMsg]     = useState('')
   const [loading, setLoading]   = useState(false)
-  const router = useRouter()
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-    setError('')
+    setErrMsg('')
 
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      setError('メールアドレスまたはパスワードが正しくありません')
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+
+      if (error) {
+        setErrMsg('メールアドレスまたはパスワードが正しくありません')
+        setLoading(false)
+        return
+      }
+
+      // フルリロードでCookieを確実にサーバーへ送信
+      window.location.href = '/dashboard'
+    } catch {
+      setErrMsg('ログインに失敗しました。しばらくしてから再試行してください。')
       setLoading(false)
-    } else {
-      router.push('/dashboard')
-      router.refresh()
     }
   }
 
@@ -71,9 +76,9 @@ export default function LoginPage() {
               />
             </div>
 
-            {error && (
+            {errMsg && (
               <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">
-                {error}
+                {errMsg}
               </div>
             )}
 
